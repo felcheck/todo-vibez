@@ -9,6 +9,7 @@ const _schema = i.schema({
       title: i.string(),
       completed: i.boolean(),
       createdAt: i.number().indexed(),
+      order: i.number().indexed().optional(),
     }),
   },
   links: {
