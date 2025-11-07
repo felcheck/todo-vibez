@@ -9,7 +9,25 @@ import {
   updateTaskTitle as updateTaskTitleFn,
   deleteTask as deleteTaskFn,
   migrateGuestTasks,
+  reorderTasks,
+  type Task,
 } from '../lib/useTasks';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Auth Modal Component
 function AuthModal({ onClose }: { onClose: () => void }) {
@@ -143,6 +161,140 @@ function CodeStep({
   );
 }
 
+// Sortable Task Component
+function SortableTask({
+  task,
+  isAuthenticated,
+  editingTaskId,
+  editTitle,
+  bouncingCheckbox,
+  completingTaskId,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onToggle,
+  onDelete,
+  onEditTitleChange,
+}: {
+  task: Task;
+  isAuthenticated: boolean;
+  editingTaskId: string | null;
+  editTitle: string;
+  bouncingCheckbox: string | null;
+  completingTaskId: string | null;
+  onStartEdit: (taskId: string, currentTitle: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onToggle: (taskId: string, completed: boolean) => void;
+  onDelete: (taskId: string) => void;
+  onEditTitleChange: (title: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm shadow-rose-100 transition-shadow hover:shadow-md ${
+        completingTaskId === task.id ? 'task-completing' : ''
+      }`}
+    >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-rose-300 hover:text-rose-500 transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="w-5 h-5"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+          />
+        </svg>
+      </div>
+
+      {/* Checkbox */}
+      <input
+        type="checkbox"
+        checked={task.completed}
+        onChange={(e) => onToggle(task.id, e.target.checked)}
+        className={`h-5 w-5 cursor-pointer rounded border-rose-200 checkbox-hover ${
+          bouncingCheckbox === task.id ? 'checkbox-checked' : ''
+        }`}
+      />
+
+      {/* Task Content */}
+      {editingTaskId === task.id ? (
+        <div className="flex flex-1 gap-2">
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => onEditTitleChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveEdit();
+              if (e.key === 'Escape') onCancelEdit();
+            }}
+            className="flex-1 rounded border border-rose-200 px-2 py-1 text-rose-900 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+            autoFocus
+          />
+          <button
+            onClick={onSaveEdit}
+            className="rounded bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
+          >
+            Save
+          </button>
+          <button
+            onClick={onCancelEdit}
+            className="rounded border border-rose-200 px-3 py-1 text-sm text-rose-600 hover:bg-rose-50"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          <span
+            className={`flex-1 cursor-pointer ${
+              task.completed
+                ? 'text-rose-300 line-through'
+                : 'text-rose-900'
+            }`}
+            onClick={() => onStartEdit(task.id, task.title)}
+          >
+            {task.title}
+          </span>
+          <button
+            onClick={() => onDelete(task.id)}
+            className="text-rose-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+          >
+            ×
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Main Task List Component
 function TaskList() {
   // Check authentication status
@@ -163,6 +315,45 @@ function TaskList() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [bouncingCheckbox, setBouncingCheckbox] = useState<string | null>(null);
   const [asciiArts, setAsciiArts] = useState<Array<{ id: string; art: string; type: number }>>([]);
+
+  // Setup drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end - reorder tasks
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = tasks.findIndex((t) => t.id === active.id);
+    const newIndex = tasks.findIndex((t) => t.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Calculate new order value (average between adjacent tasks)
+    let newOrder: number;
+
+    if (newIndex === 0) {
+      // Moving to first position
+      newOrder = tasks[0].order / 2;
+    } else if (newIndex === tasks.length - 1) {
+      // Moving to last position
+      newOrder = tasks[tasks.length - 1].order + 1000;
+    } else if (oldIndex < newIndex) {
+      // Moving down
+      newOrder = (tasks[newIndex].order + tasks[newIndex + 1].order) / 2;
+    } else {
+      // Moving up
+      newOrder = (tasks[newIndex - 1].order + tasks[newIndex].order) / 2;
+    }
+
+    reorderTasks(active.id as string, newOrder, isAuthenticated);
+  };
 
   // Migrate guest tasks when user authenticates
   useEffect(() => {
@@ -333,81 +524,44 @@ function TaskList() {
         </div>
 
         {/* Task List */}
-        <div className="space-y-2">
-          {tasks.length === 0 ? (
-            <div className="rounded-lg bg-white p-12 text-center shadow-sm shadow-rose-100">
-              <p className="text-rose-400">
-                No tasks yet. Click the + button to add one.
-              </p>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={tasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {tasks.length === 0 ? (
+                <div className="rounded-lg bg-white p-12 text-center shadow-sm shadow-rose-100">
+                  <p className="text-rose-400">
+                    No tasks yet. Click the + button to add one.
+                  </p>
+                </div>
+              ) : (
+                tasks.map((task) => (
+                  <SortableTask
+                    key={task.id}
+                    task={task}
+                    isAuthenticated={isAuthenticated}
+                    editingTaskId={editingTaskId}
+                    editTitle={editTitle}
+                    bouncingCheckbox={bouncingCheckbox}
+                    completingTaskId={completingTaskId}
+                    onStartEdit={handleStartEdit}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={handleCancelEdit}
+                    onToggle={handleToggleTask}
+                    onDelete={(taskId) => deleteTaskFn(taskId, isAuthenticated)}
+                    onEditTitleChange={setEditTitle}
+                  />
+                ))
+              )}
             </div>
-          ) : (
-            tasks.map((task) => (
-              <div
-                key={task.id}
-                className={`group flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm shadow-rose-100 transition-shadow hover:shadow-md ${
-                  completingTaskId === task.id ? 'task-completing' : ''
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={(e) =>
-                    handleToggleTask(task.id, e.target.checked)
-                  }
-                  className={`h-5 w-5 cursor-pointer rounded border-rose-200 checkbox-hover ${
-                    bouncingCheckbox === task.id ? 'checkbox-checked' : ''
-                  }`}
-                />
-                {editingTaskId === task.id ? (
-                  <div className="flex flex-1 gap-2">
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveEdit();
-                        if (e.key === 'Escape') handleCancelEdit();
-                      }}
-                      className="flex-1 rounded border border-rose-200 px-2 py-1 text-rose-900 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveEdit}
-                      className="rounded bg-rose-500 px-3 py-1 text-sm text-white hover:bg-rose-600"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="rounded border border-rose-200 px-3 py-1 text-sm text-rose-600 hover:bg-rose-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <span
-                      className={`flex-1 cursor-pointer ${
-                        task.completed
-                          ? 'text-rose-300 line-through'
-                          : 'text-rose-900'
-                      }`}
-                      onClick={() => handleStartEdit(task.id, task.title)}
-                    >
-                      {task.title}
-                    </span>
-                    <button
-                      onClick={() => deleteTaskFn(task.id, isAuthenticated)}
-                      className="text-rose-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-                    >
-                      ×
-                    </button>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Floating Add Button */}
         <button

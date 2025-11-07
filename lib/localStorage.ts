@@ -4,6 +4,7 @@ export interface GuestTask {
   title: string;
   completed: boolean;
   createdAt: number;
+  order?: number;
 }
 
 const STORAGE_KEY = 'todo-vibez-guest-tasks';

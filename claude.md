@@ -43,6 +43,7 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
   - Real-time task counter (completed vs pending)
   - Sign up/Sign out button (right side, rose accent)
 - **Tasks displayed with**:
+  - Drag handle (three horizontal lines icon, rose accent)
   - Checkbox with hover pulse animation (rose accent)
   - Title text (click to edit inline, rose text)
   - Visual differentiation (completed = rose-300 fade + strikethrough)
@@ -53,6 +54,7 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
   - Checkbox pulses rhythmically on hover (mimics vibing)
   - Checkbox bounces on check/uncheck (satisfying feedback)
   - Task row does gentle "head bob" tilt when toggled (inspired by vibing cat)
+  - Tasks become semi-transparent while being dragged
   - **ASCII art celebration** floats across screen on completion
 
 ### Session Management
@@ -70,6 +72,7 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
 8. ✅ **Delete tasks**: Hover to reveal delete button
 9. ✅ **Task counter**: Shows completed vs pending in header
 10. ✅ **Vibing cat branding**: Animated GIF and themed interactions
+11. ✅ **Drag and drop reordering**: Click and drag tasks to reorder them
 
 ## Design & Animations (Implemented):
 
@@ -104,6 +107,14 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
   - Auto-cleanup after 5 seconds
   - Multiple celebrations can appear simultaneously
 
+### **Drag and Drop**
+- **Drag Handle**: Three horizontal lines icon in rose color on left side of each task
+- **Visual Feedback**: Tasks become semi-transparent while being dragged
+- **Smooth Animations**: CSS transitions for drag and drop movements
+- **Smart Ordering**: Uses fractional order values to maintain custom sort order
+- **Keyboard Accessible**: Supports keyboard-based dragging for accessibility
+- **Works Everywhere**: Functions in both guest mode (localStorage) and authenticated mode (InstantDB)
+
 ### **UI Polish**
 - **Modal Design**: Rose-tinted shadows and borders throughout
 - **Floating + Button**: Rose-500 with shadow, scales on hover
@@ -111,7 +122,6 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
 - **Empty State**: Friendly message with rose-tinted text
 
 ## Future Enhancements (Phase 2+):
-- Drag-and-drop task reordering
 - Progress bar / visual completion metrics
 - Reminders & due dates (with notifications)
 - Tags, categories, or filters
@@ -133,6 +143,7 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
 - **Animations**: CSS keyframes + React state management
 - **Image Optimization**: Next.js Image domains configured for Giphy CDN
 - **State Management**: React hooks (useState, useEffect) for real-time updates
+- **Drag and Drop**: @dnd-kit/core and @dnd-kit/sortable with keyboard support
 
 ## Current Status (Phase 1 Complete) ✅
 
@@ -140,6 +151,7 @@ Deliver a minimalist, distraction-free task management app that emphasizes focus
 - ✅ Frictionless guest mode with instant access
 - ✅ Optional authentication with seamless migration
 - ✅ Full CRUD operations (Create, Read, Update, Delete tasks)
+- ✅ Drag and drop task reordering with visual feedback
 - ✅ Real-time task counter and updates
 - ✅ Peachy cream aesthetic with cohesive design system
 - ✅ Sticky header with glassmorphism
