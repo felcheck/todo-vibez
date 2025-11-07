@@ -340,16 +340,16 @@ function TaskList() {
 
     if (newIndex === 0) {
       // Moving to first position
-      newOrder = tasks[0].order / 2;
+      newOrder = (tasks[0].order ?? tasks[0].createdAt) / 2;
     } else if (newIndex === tasks.length - 1) {
       // Moving to last position
-      newOrder = tasks[tasks.length - 1].order + 1000;
+      newOrder = (tasks[tasks.length - 1].order ?? tasks[tasks.length - 1].createdAt) + 1000;
     } else if (oldIndex < newIndex) {
       // Moving down
-      newOrder = (tasks[newIndex].order + tasks[newIndex + 1].order) / 2;
+      newOrder = ((tasks[newIndex].order ?? tasks[newIndex].createdAt) + (tasks[newIndex + 1].order ?? tasks[newIndex + 1].createdAt)) / 2;
     } else {
       // Moving up
-      newOrder = (tasks[newIndex - 1].order + tasks[newIndex].order) / 2;
+      newOrder = ((tasks[newIndex - 1].order ?? tasks[newIndex - 1].createdAt) + (tasks[newIndex].order ?? tasks[newIndex].createdAt)) / 2;
     }
 
     reorderTasks(active.id as string, newOrder, isAuthenticated);
